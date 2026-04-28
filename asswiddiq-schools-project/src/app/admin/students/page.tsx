@@ -135,12 +135,12 @@ export default function StudentPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
+    <div className="min-h-screen bg-slate-50 p-6">
       {/* HEADER */}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-blue-900">
+            <h1 className="text-3xl font-bold text-blue-600">
               Student Management
             </h1>
             <p className="text-slate-600 mt-1">
@@ -176,7 +176,7 @@ export default function StudentPage() {
                 });
                 setIsModalOpen(true);
               }}
-              className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium shadow-md whitespace-nowrap"
+              className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium shadow-md whitespace-nowrap active:scale-95"
             >
               + Add Student
             </button>
@@ -187,19 +187,19 @@ export default function StudentPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white p-3 rounded-lg shadow border border-slate-200">
             <p className="text-xs text-slate-500 uppercase tracking-wide">Total Students</p>
-            <p className="text-xl font-bold text-blue-900">{students.length}</p>
+            <p className="text-xl font-bold text-blue-600">{students.length}</p>
           </div>
           <div className="bg-white p-3 rounded-lg shadow border border-slate-200">
             <p className="text-xs text-slate-500 uppercase tracking-wide">Filtered</p>
-            <p className="text-xl font-bold text-green-700">{filtered.length}</p>
+            <p className="text-xl font-bold text-emerald-600">{filtered.length}</p>
           </div>
           <div className="bg-white p-3 rounded-lg shadow border border-slate-200">
             <p className="text-xs text-slate-500 uppercase tracking-wide">Showing</p>
-            <p className="text-xl font-bold text-sky-700">{paginatedData.length}</p>
+            <p className="text-xl font-bold text-blue-600">{paginatedData.length}</p>
           </div>
           <div className="bg-white p-3 rounded-lg shadow border border-slate-200">
             <p className="text-xs text-slate-500 uppercase tracking-wide">Pages</p>
-            <p className="text-xl font-bold text-purple-700">{totalPages}</p>
+            <p className="text-xl font-bold text-violet-600">{totalPages}</p>
           </div>
         </div>
       </div>
@@ -216,19 +216,19 @@ export default function StudentPage() {
             </p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gradient-to-r from-blue-800 to-blue-900 text-white">
-              <tr>
-                <th className="p-4 text-left font-semibold">ID</th>
-                <th className="p-4 text-left font-semibold">Name</th>
-                <th className="p-4 text-left font-semibold">Class</th>
-                <th className="p-4 text-left font-semibold">Subjects</th>
-                <th className="p-4 text-left font-semibold">Phone</th>
-                <th className="p-4 text-left font-semibold">Parent</th>
-                <th className="p-4 text-left font-semibold">Email</th>
-                <th className="p-4 text-left font-semibold">Actions</th>
-              </tr>
-            </thead>
+           <table className="w-full text-sm">
+             <thead className="bg-blue-600 text-white">
+               <tr>
+                 <th className="p-4 text-left font-semibold">ID</th>
+                 <th className="p-4 text-left font-semibold">Name</th>
+                 <th className="p-4 text-left font-semibold">Class</th>
+                 <th className="p-4 text-left font-semibold">Subjects</th>
+                 <th className="p-4 text-left font-semibold">Phone</th>
+                 <th className="p-4 text-left font-semibold">Parent</th>
+                 <th className="p-4 text-left font-semibold">Email</th>
+                 <th className="p-4 text-left font-semibold">Actions</th>
+               </tr>
+             </thead>
 
             <tbody>
               {paginatedData.map((s) => (
@@ -240,23 +240,23 @@ export default function StudentPage() {
                   <td className="p-4 font-medium text-slate-900">
                     {s.firstName} {s.middleName} {s.lastName}
                   </td>
-                  <td className="p-4">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                      {s.className}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-1">
-                      {s.subjects.map((sub) => (
-                        <span
-                          key={sub}
-                          className="px-2 py-1 bg-sky-100 text-sky-800 rounded text-xs font-medium"
-                        >
-                          {sub}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
+                   <td className="p-4">
+                     <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                       {s.className}
+                     </span>
+                   </td>
+                   <td className="p-4">
+                     <div className="flex flex-wrap gap-1">
+                       {s.subjects.map((sub) => (
+                         <span
+                           key={sub}
+                           className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium"
+                         >
+                           {sub}
+                         </span>
+                       ))}
+                     </div>
+                   </td>
                   <td className="p-4">
                     <a
                       href={`tel:${s.phone}`}
@@ -274,23 +274,23 @@ export default function StudentPage() {
                       {s.email}
                     </a>
                   </td>
-                  <td className="p-4">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(s.studentId)}
-                        className="bg-yellow-500 text-white px-3 py-1.5 rounded hover:bg-yellow-600 transition font-medium text-xs"
-                      >
-                        Edit
-                      </button>
+                   <td className="p-4">
+                     <div className="flex gap-2">
+                       <button
+                         onClick={() => handleEdit(s.studentId)}
+                         className="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition font-medium text-xs active:scale-95"
+                       >
+                         Edit
+                       </button>
 
                       <button
                         onClick={() => handleDelete(s.studentId)}
-                        className="bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 transition font-medium text-xs"
+                        className="bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700 transition font-medium text-xs active:scale-95"
                       >
                         Delete
                       </button>
-                    </div>
-                  </td>
+                     </div>
+                   </td>
                 </tr>
               ))}
             </tbody>
@@ -310,7 +310,7 @@ export default function StudentPage() {
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-sm"
+              className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-blue-50 hover:border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-sm"
             >
               Previous
             </button>
@@ -340,12 +340,53 @@ export default function StudentPage() {
                   className={`w-10 h-10 rounded-lg font-medium text-sm transition ${
                     isActive
                       ? "bg-blue-600 text-white shadow-md"
-                      : "border border-slate-300 text-slate-700 hover:bg-slate-50"
+                      : "border border-slate-300 text-slate-700 hover:bg-blue-50 hover:border-blue-200"
                   }`}
                 >
                   {page}
                 </button>
               );
+            })}
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-blue-50 hover:border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-sm"
+            >
+              Next
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+              const isActive = page === currentPage;
+              const isVisible =
+                page === 1 ||
+                page === totalPages ||
+                (page >= currentPage - 1 && page <= currentPage + 1);
+
+              if (!isVisible && page !== currentPage - 2 && page !== currentPage + 2)
+                return null;
+
+              if (!isVisible && (page === currentPage - 2 || page === currentPage + 2)) {
+                return (
+                  <span key={page} className="px-2 text-slate-400">
+                    ...
+                  </span>
+                );
+              }
+
+               return (
+                 <button
+                   key={page}
+                   onClick={() => handlePageChange(page)}
+                   className={`w-10 h-10 rounded-lg font-medium text-sm transition ${
+                     isActive
+                       ? "bg-blue-600 text-white shadow-md"
+                       : "border border-slate-300 text-slate-700 hover:bg-blue-50 hover:border-blue-200"
+                   }`}
+                 >
+                   {page}
+                 </button>
+               );
             })}
 
             <button
@@ -496,22 +537,22 @@ export default function StudentPage() {
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-2.5 bg-slate-400 text-white rounded-lg hover:bg-slate-500 transition font-medium"
-                >
-                  Cancel
-                </button>
+               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                 <button
+                   type="button"
+                   onClick={() => setIsModalOpen(false)}
+                   className="px-6 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition font-medium"
+                 >
+                   Cancel
+                 </button>
 
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-md"
-                >
-                  {editIndex !== null ? "Update Student" : "Save Student"}
-                </button>
-              </div>
+                 <button
+                   type="submit"
+                   className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-md active:scale-95"
+                 >
+                   {editIndex !== null ? "Update Student" : "Save Student"}
+                 </button>
+               </div>
             </form>
           </div>
         </div>
