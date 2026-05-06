@@ -8,12 +8,22 @@
     "ses_22be71e5dffeEpqIX58Y56znVr": {
       "worktreeId": null,
       "createdAt": "2026-04-28T12:38:13.732Z"
+    },
+    "ses_2037fb6a8ffe4u385aTzEk6WJH": {
+      "worktreeId": null,
+      "createdAt": "2026-05-06T08:55:59.459Z"
+    },
+    "ses_20377b34fffeSit50M6t5RnElC": {
+      "worktreeId": null,
+      "createdAt": "2026-05-06T09:04:45.371Z"
     }
   },
   "tabOrder": {
     "local": [
       "ses_22bf020bdffedCsMWu5eet1SvC",
-      "ses_22be71e5dffeEpqIX58Y56znVr"
+      "ses_22be71e5dffeEpqIX58Y56znVr",
+      "ses_2037fb6a8ffe4u385aTzEk6WJH",
+      "ses_20377b34fffeSit50M6t5RnElC"
     ]
   }
 }

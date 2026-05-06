@@ -1,644 +1,554 @@
 "use client";
 
-import { useState, type FormEvent, type ChangeEvent } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { Plus, Search, Edit, Trash2, X, UserCheck } from "lucide-react";
 
-type ClassAssignment = {
-  class: string;
-  subjects: string[];
-};
-
-type StaffMember = {
+type Staff = {
+  id?: number;
   staffId: string;
+  title: string;
   firstName: string;
   middleName: string;
   lastName: string;
-  title: string;
   phone: string;
   email: string;
   address: string;
-  classAssignments: ClassAssignment[];
+  subject: string;
+  className: string;
 };
 
-const classOptions = [
-  "Nursery",
-  "Class 1",
-  "Class 2",
-  "Class 3",
-  "Class 4",
-  "Class 5",
-  "Class 6",
-];
-
-const subjectOptions = [
-  "Math",
-  "English",
-  "Science",
-  "Kiswahili",
-  "Geography",
-  "History",
-];
-
-const initialFormState: StaffMember = {
-  staffId: "",
-  firstName: "",
-  middleName: "",
-  lastName: "",
-  title: "",
-  phone: "",
-  email: "",
-  address: "",
-  classAssignments: [],
-};
+const TITLES = ["Mr", "Mrs", "Miss", "Dr", "Prof"];
 
 export default function StaffPage() {
-  const [staffList, setStaffList] = useState<StaffMember[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const API = process.env.NEXT_PUBLIC_API_URL;
+
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [classes, setClasses] = useState<{ id: number; name: string }[]>([]);
+  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+
+  const [form, setForm] = useState<Staff>({
+    staffId: "",
+    title: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    address: "",
+    subject: "",
+    className: "",
+  });
+
+  const [editId, setEditId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const [form, setForm] = useState<StaffMember>(initialFormState);
-
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const name = e.target.name as keyof StaffMember;
-    setForm((prev) => ({ ...prev, [name]: e.target.value }));
-  };
-
-  const addClassAssignment = (className: string) => {
-    if (!form.classAssignments.some((a) => a.class === className)) {
-      setForm((prev) => ({
-        ...prev,
-        classAssignments: [...prev.classAssignments, { class: className, subjects: [] }],
-      }));
-    }
-  };
-
-  const removeClassAssignment = (className: string) => {
-    setForm((prev) => ({
-      ...prev,
-      classAssignments: prev.classAssignments.filter((a) => a.class !== className),
-    }));
-  };
-
-  const toggleSubjectForClass = (className: string, subject: string) => {
-    setForm((prev) => ({
-      ...prev,
-      classAssignments: prev.classAssignments.map((assignment) => {
-        if (assignment.class === className) {
-          const exists = assignment.subjects.includes(subject);
-          return {
-            ...assignment,
-            subjects: exists
-              ? assignment.subjects.filter((s) => s !== subject)
-              : [...assignment.subjects, subject],
-          };
+  // 🔹 LOAD DATA
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        const staffRes = await fetch(`${API}/teachers`);
+        if (staffRes.ok) {
+          setStaff(await staffRes.json());
         }
-        return assignment;
-      }),
-    }));
+        const classesRes = await fetch(`${API}/classes`);
+        if (classesRes.ok) {
+          setClasses(await classesRes.json());
+        }
+        const subjectsRes = await fetch(`${API}/subjects`);
+        if (subjectsRes.ok) {
+          setSubjects(await subjectsRes.json());
+        }
+      } catch (err) {
+        console.error("Error fetching data:", err);
+      }
+    };
+    fetchAllData();
+  }, [API]);
+
+  // 🔹 FILTER & SEARCH
+  const filtered = useMemo(() => {
+    return staff.filter((s) =>
+      s.firstName.toLowerCase().includes(search.toLowerCase()) ||
+      s.lastName.toLowerCase().includes(search.toLowerCase()) ||
+      s.staffId.toLowerCase().includes(search.toLowerCase()) ||
+      s.subject.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [staff, search]);
+
+  // 🔹 INPUT CHANGE
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const getStaffClasses = (staff: StaffMember) => {
-    return staff.classAssignments.map((a) => a.class);
-  };
-
-  const getStaffSubjects = (staff: StaffMember) => {
-    return [...new Set(staff.classAssignments.flatMap((a) => a.subjects))];
-  };
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  // 🔹 SAVE STAFF
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setLoading(true);
+    setError("");
 
-    if (editIndex !== null) {
-      const updated = [...staffList];
-      updated[editIndex] = form;
-      setStaffList(updated);
-      setEditIndex(null);
-    } else {
-      setStaffList([...staffList, form]);
-    }
+    const method = editId ? "PUT" : "POST";
+    const url = editId ? `${API}/teachers/${editId}` : `${API}/teachers`;
 
-    setForm(initialFormState);
-    setIsModalOpen(false);
-  };
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
 
-  const handleEdit = (staffId: string) => {
-    const index = staffList.findIndex((s) => s.staffId === staffId);
-    if (index !== -1) {
-      const existing = staffList[index];
-      const legacy = existing as StaffMember & { classes?: string[]; subjects?: string[] };
-      const staffData: StaffMember = legacy.classes
-        ? {
-            staffId: legacy.staffId,
-            firstName: legacy.firstName,
-            middleName: legacy.middleName,
-            lastName: legacy.lastName,
-            title: legacy.title,
-            phone: legacy.phone,
-            email: legacy.email,
-            address: legacy.address,
-            classAssignments: legacy.classes.map((c) => ({
-              class: c,
-              subjects: legacy.subjects ?? [],
-            })),
-          }
-        : {
-            ...existing,
-            classAssignments: existing.classAssignments ?? [],
-          };
+      if (!res.ok) throw new Error("Failed to save");
 
-      setForm(staffData);
-      setEditIndex(index);
-      setIsModalOpen(true);
+      setForm({
+        staffId: "",
+        title: "",
+        firstName: "",
+        middleName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+        address: "",
+        subject: "",
+        className: "",
+      });
+      setEditId(null);
+      setIsModalOpen(false);
+      
+      // Reload data
+      const staffRes = await fetch(`${API}/teachers`);
+      if (staffRes.ok) {
+        setStaff(await staffRes.json());
+      }
+    } catch {
+      setError("Failed to save staff member");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = (staffId: string) => {
-    setStaffList(staffList.filter((s) => s.staffId !== staffId));
+  // 🔹 DELETE
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this staff member?")) return;
+    try {
+      await fetch(`${API}/teachers/${id}`, { method: "DELETE" });
+      const staffRes = await fetch(`${API}/teachers`);
+      if (staffRes.ok) {
+        setStaff(await staffRes.json());
+      }
+    } catch {
+      console.error("Error deleting staff:");
+    }
   };
 
-  const filtered = staffList.filter((s) =>
-    `${s.firstName} ${s.lastName} ${s.staffId}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+  const openAddModal = () => {
+    setForm({
+      staffId: "",
+      title: "",
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      phone: "",
+      email: "",
+      address: "",
+      subject: "",
+      className: "",
+    });
+    setEditId(null);
+    setError("");
+    setIsModalOpen(true);
+  };
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
-  const displayPage = filtered.length === 0 ? 1 : Math.min(currentPage, totalPages);
-  const startIndex = (displayPage - 1) * itemsPerPage;
-  const paginatedData = filtered.slice(startIndex, startIndex + itemsPerPage);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+  const openEditModal = (s: Staff) => {
+    setForm(s);
+    setEditId(s.id!);
+    setError("");
+    setIsModalOpen(true);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      {/* HEADER */}
-       <div className="flex flex-col gap-4 mb-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-blue-600">
-                Asswiddiq Schools Staff
-              </h1>
-              <p className="text-slate-600 mt-1">
-                Manage teachers and staff members
-              </p>
-            </div>
-
-           <div className="flex gap-3 w-full md:w-auto">
-            <input
-              className="border border-slate-300 bg-white text-slate-900 p-2.5 rounded-lg w-full md:w-64 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
-              placeholder="Search by name or ID..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
-
-              <button
-                onClick={() => {
-                  setEditIndex(null);
-                  setForm(initialFormState);
-                  setIsModalOpen(true);
-                }}
-                className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium shadow-md whitespace-nowrap active:scale-95"
->
-                + Add Staff
-              </button>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-indigo-50/10">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-blue-900">
+              Staff Management
+            </h1>
+            <p className="text-slate-600 mt-1">
+              Manage teachers and staff members
+            </p>
           </div>
+          <button
+            onClick={openAddModal}
+            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl shadow-blue-500/25 font-medium active:scale-95 w-full lg:w-auto"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Staff</span>
+          </button>
+        </div>
 
-          {/* STATS BAR */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-white p-3 rounded-lg shadow border border-slate-200">
-              <p className="text-xs text-slate-500 uppercase tracking-wide">Total Staff</p>
-              <p className="text-xl font-bold text-blue-600">{staffList.length}</p>
-            </div>
-            <div className="bg-white p-3 rounded-lg shadow border border-slate-200">
-              <p className="text-xs text-slate-500 uppercase tracking-wide">Filtered</p>
-              <p className="text-xl font-bold text-emerald-600">{filtered.length}</p>
-            </div>
-            <div className="bg-white p-3 rounded-lg shadow border border-slate-200">
-              <p className="text-xs text-slate-500 uppercase tracking-wide">Showing</p>
-              <p className="text-xl font-bold text-blue-600">{paginatedData.length}</p>
-            </div>
-            <div className="bg-white p-3 rounded-lg shadow border border-slate-200">
-              <p className="text-xs text-slate-500 uppercase tracking-wide">Pages</p>
-              <p className="text-xl font-bold text-violet-600">{totalPages}</p>
-            </div>
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-all">
+            <p className="text-xs text-slate-500 uppercase tracking-wider">Total Staff</p>
+            <p className="text-2xl font-bold text-blue-600">{staff.length}</p>
+          </div>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-all">
+            <p className="text-xs text-slate-500 uppercase tracking-wider">Subjects</p>
+            <p className="text-2xl font-bold text-emerald-600">{new Set(staff.map(s => s.subject)).size}</p>
+          </div>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-all">
+            <p className="text-xs text-slate-500 uppercase tracking-wider">Classes</p>
+            <p className="text-2xl font-bold text-violet-600">{new Set(staff.map(s => s.className)).size}</p>
+          </div>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-all">
+            <p className="text-xs text-slate-500 uppercase tracking-wider">Showing</p>
+            <p className="text-2xl font-bold text-amber-600">{filtered.length}</p>
           </div>
         </div>
 
-      {/* TABLE */}
-      <div className="bg-white shadow-lg rounded-xl overflow-x-auto border border-slate-200">
-        {paginatedData.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">
-            <p className="text-lg font-medium">No staff members found</p>
-            <p className="text-sm mt-2">
+        {/* Search */}
+        <div className="relative max-w-md mb-6">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <input
+            placeholder="Search by name, ID, subject..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
+          />
+        </div>
+
+        {/* Empty State */}
+        {filtered.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
+            <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+              <UserCheck className="w-10 h-10 text-slate-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">
+              {search ? "No matching staff" : "No staff yet"}
+            </h3>
+            <p className="text-slate-500 text-sm max-w-md mx-auto">
               {search
-                ? "Try adjusting your search criteria"
-                : "Click '+ Add Staff' to add your first staff member"}
+                ? "Try adjusting your search"
+                : "Click 'Add Staff' to register your first staff member"}
             </p>
           </div>
         ) : (
-           <table className="w-full text-sm">
-             <thead className="bg-blue-600 text-white">
-               <tr>
-                 <th className="p-4 text-left font-semibold">ID</th>
-                 <th className="p-4 text-left font-semibold">Name</th>
-                 <th className="p-4 text-left font-semibold">Title</th>
-                 <th className="p-4 text-left font-semibold">Phone</th>
-                 <th className="p-4 text-left font-semibold">Email</th>
-                 <th className="p-4 text-left font-semibold">Classes</th>
-                 <th className="p-4 text-left font-semibold">Subjects</th>
-                 <th className="p-4 text-left font-semibold">Actions</th>
-               </tr>
-             </thead>
+          /* Cards Layout - Mobile First */
+          <>
+            {/* Desktop Table */}
+            <div className="hidden lg:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-blue-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">
+                        Staff ID
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">
+                        Subject
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">
+                        Class
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-6 py-4 text-right text-xs font-semibold text-blue-700 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filtered.map((s) => (
+                      <tr key={s.id} className="hover:bg-slate-50/80 transition-colors group">
+                        <td className="px-6 py-4 font-medium text-slate-700">{s.staffId}</td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-slate-900">
+                            {s.title} {s.firstName} {s.lastName}
+                          </div>
+                          <div className="text-xs text-slate-500">{s.phone}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                            {s.subject}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">{s.className}</td>
+                        <td className="px-6 py-4 text-slate-600">{s.email}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => openEditModal(s)}
+                              className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all active:scale-95"
+                              title="Edit"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(s.id!)}
+                              className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-95"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-            <tbody>
-              {paginatedData.map((s) => (
-                <tr
-                  key={s.staffId}
-                  className="border-b border-slate-200 hover:bg-blue-50 transition-colors"
-                >
-                  <td className="p-4 font-mono text-slate-700">{s.staffId}</td>
-                  <td className="p-4 font-medium text-slate-900">
-                    {s.firstName} {s.middleName} {s.lastName}
-                  </td>
-                  <td className="p-4 text-slate-600">{s.title}</td>
-                  <td className="p-4">
-                    <a
-                      href={`tel:${s.phone}`}
-                      className="text-blue-600 hover:underline"
-                    >
-                      {s.phone}
-                    </a>
-                  </td>
-                  <td className="p-4">
-                    <a
-                      href={`mailto:${s.email}`}
-                      className="text-blue-600 hover:underline"
-                    >
-                      {s.email}
-                    </a>
-                  </td>
-                  <td className="p-4">
+            {/* Mobile Cards */}
+            <div className="lg:hidden space-y-3">
+              {filtered.map((s) => (
+                <div key={s.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-all">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-medium text-slate-500">{s.staffId}</span>
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                          {s.subject}
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-slate-900 truncate">
+                        {s.title} {s.firstName} {s.lastName}
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1 truncate">{s.email}</p>
+                      <div className="flex flex-wrap gap-3 mt-3 text-xs">
+                        <span className="text-slate-600">
+                          <span className="font-medium">Class:</span> {s.className}
+                        </span>
+                        <span className="text-slate-600">
+                          <span className="font-medium">Phone:</span> {s.phone}
+                        </span>
+                      </div>
+                    </div>
                     <div className="flex flex-col gap-1">
-                      {getStaffClasses(s).length > 0 ? (
-                        getStaffClasses(s).map((className) => {
-                          const assignment = s.classAssignments.find((a) => a.class === className);
-                          const subjects = assignment?.subjects || [];
-                          return (
-                            <div key={className} className="text-xs">
-                              <span className="font-semibold text-slate-700">{className}</span>
-                              {subjects.length > 0 && (
-                                <span className="text-slate-500 ml-1">
-                                  ({subjects.join(", ")})
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <span className="text-slate-400 text-xs">None assigned</span>
-                      )}
-                    </div>
-                  </td>
-                   <td className="p-4">
-                     <div className="flex flex-wrap gap-1">
-                       {getStaffSubjects(s).map((sub) => (
-                         <span
-                           key={sub}
-                           className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium"
-                         >
-                           {sub}
-                         </span>
-                       ))}
-                     </div>
-                   </td>
-                  <td className="p-4">
-                    <div className="flex gap-2">
                       <button
-                        onClick={() => handleEdit(s.staffId)}
-                        className="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition font-medium text-xs active:scale-95"
+                        onClick={() => openEditModal(s)}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all active:scale-95"
                       >
-                        Edit
+                        <Edit className="w-4 h-4" />
                       </button>
-
                       <button
-                        onClick={() => handleDelete(s.staffId)}
-                        className="bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700 transition font-medium text-xs active:scale-95"
+                        onClick={() => handleDelete(s.id!)}
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-95"
                       >
-                        Delete
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
 
-      {/* PAGINATION */}
-      {filtered.length > 0 && totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 bg-white p-4 rounded-xl shadow-md border border-slate-200">
-          <div className="text-sm text-slate-600">
-            Showing {startIndex + 1}–{Math.min(startIndex + itemsPerPage, filtered.length)} of {filtered.length} staff member
-            {filtered.length !== 1 ? "s" : ""}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePageChange(displayPage - 1)}
-              disabled={displayPage === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-blue-50 hover:border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-sm"
-            >
-              Previous
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-              const isActive = page === displayPage;
-              const isVisible =
-                page === 1 ||
-                page === totalPages ||
-                (page >= displayPage - 1 && page <= displayPage + 1);
-
-              if (!isVisible && page !== displayPage - 2 && page !== displayPage + 2)
-                return null;
-
-              if (!isVisible && (page === displayPage - 2 || page === displayPage + 2)) {
-                return (
-                  <span key={page} className="px-2 text-slate-400">
-                    ...
-                  </span>
-                );
-              }
-
-              return (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`w-10 h-10 rounded-lg font-medium text-sm transition ${
-                    isActive
-                      ? "bg-blue-600 text-white shadow-md"
-                      : "border border-slate-300 text-slate-700 hover:bg-blue-50 hover:border-blue-200"
-                  }`}
-                >
-                  {page}
-                </button>
-              );
-            })}
-
-            <button
-              onClick={() => handlePageChange(displayPage + 1)}
-              disabled={displayPage === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-blue-50 hover:border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-sm"
-            >
-              Next
-            </button>
-
-             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-               const isActive = page === displayPage;
-               const isVisible =
-                 page === 1 ||
-                 page === totalPages ||
-                 (page >= displayPage - 1 && page <= displayPage + 1);
-
-               if (!isVisible && page !== displayPage - 2 && page !== displayPage + 2)
-                 return null;
-
-               if (!isVisible && (page === displayPage - 2 || page === displayPage + 2)) {
-                 return (
-                   <span key={page} className="px-2 text-slate-400">
-                     ...
-                   </span>
-                 );
-               }
-
-               return (
-                 <button
-                   key={page}
-                   onClick={() => handlePageChange(page)}
-                   className={`w-10 h-10 rounded-lg font-medium text-sm transition ${
-                     isActive
-                       ? "bg-blue-600 text-white shadow-md"
-                       : "border border-slate-300 text-slate-700 hover:bg-blue-50 hover:border-blue-200"
-                   }`}
-                 >
-                   {page}
-                 </button>
-               );
-             })}
-
-            <button
-              onClick={() => handlePageChange(displayPage + 1)}
-              disabled={displayPage === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-sm"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL */}
+      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white w-full max-w-3xl rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-blue-900">
-                {editIndex !== null ? "Edit Staff Member" : "Add New Staff"}
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900">
+                {editId !== null ? "Edit Staff Member" : "Add New Staff"}
               </h2>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 transition text-2xl font-light"
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
               >
-                ×
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input
-                  name="staffId"
-                  placeholder="Staff ID *"
-                  value={form.staffId}
-                  onChange={handleChange}
-                  required
-                  className="border border-slate-300 bg-white text-slate-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
-                />
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {error && (
+                <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</p>
+              )}
 
-                <input
-                  name="title"
-                  placeholder="Title *"
-                  value={form.title}
-                  onChange={handleChange}
-                  required
-                  className="border border-slate-300 bg-white text-slate-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                  name="firstName"
-                  placeholder="First Name *"
-                  value={form.firstName}
-                  onChange={handleChange}
-                  required
-                  className="border border-slate-300 bg-white text-slate-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
-                />
-                <input
-                  name="middleName"
-                  placeholder="Middle Name"
-                  value={form.middleName}
-                  onChange={handleChange}
-                  className="border border-slate-300 bg-white text-slate-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
-                />
-                <input
-                  name="lastName"
-                  placeholder="Last Name *"
-                  value={form.lastName}
-                  onChange={handleChange}
-                  required
-                  className="border border-slate-300 bg-white text-slate-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input
-                  name="phone"
-                  placeholder="Phone Number *"
-                  value={form.phone}
-                  onChange={handleChange}
-                  required
-                  className="border border-slate-300 bg-white text-slate-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
-                />
-                <input
-                  name="email"
-                  type="email"
-                  placeholder="Email Address *"
-                  value={form.email}
-                  onChange={handleChange}
-                  required
-                  className="border border-slate-300 bg-white text-slate-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
-                />
-              </div>
-
-              <textarea
-                name="address"
-                placeholder="Address"
-                value={form.address}
-                onChange={handleChange}
-                rows={3}
-                className="border border-slate-300 bg-white text-slate-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition w-full placeholder:text-slate-400"
-              />
-
-              {/* CLASS & SUBJECT ASSIGNMENTS */}
-              <div className="bg-slate-50 p-4 rounded-xl space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-blue-900 text-sm uppercase tracking-wider">
-                    Class & Subject Assignments
-                  </p>
-                  <div className="flex gap-2">
-                      <select
-                        value=""
-                        onChange={(e) => {
-                          const selectedClass = e.target.value;
-                          if (selectedClass && !form.classAssignments.some((a) => a.class === selectedClass)) {
-                            addClassAssignment(selectedClass);
-                          }
-                          e.target.value = "";
-                        }}
-                        className="border border-slate-300 bg-white text-slate-900 px-3 py-1.5 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400"
-                      >
-                      <option value="" disabled>
-                        Add class...
-                      </option>
-                      {classOptions
-                        .filter((c) => !form.classAssignments.some((a) => a.class === c))
-                        .map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Staff ID *
+                  </label>
+                  <input
+                    name="staffId"
+                    placeholder="S001"
+                    value={form.staffId}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
+                  />
                 </div>
-
-                {form.classAssignments.length === 0 ? (
-                  <p className="text-sm text-slate-500 italic">
-                    No classes assigned. Select a class above to add assignments.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {form.classAssignments.map((assignment) => (
-                      <div
-                        key={assignment.class}
-                        className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold text-slate-800 text-sm">
-                              {assignment.class}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => removeClassAssignment(assignment.class)}
-                              className="text-red-500 hover:text-red-700 text-sm font-medium"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          {subjectOptions.map((subject) => {
-                            const isSelected = assignment.subjects.includes(subject);
-                            return (
-                              <button
-                                type="button"
-                                key={subject}
-                                onClick={() => toggleSubjectForClass(assignment.class, subject)}
-                                 className={`px-3 py-1.5 border rounded-lg transition text-sm font-medium ${
-                                   isSelected
-                                     ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                                     : "bg-white text-slate-600 border-slate-300 hover:border-blue-400"
-                                 }`}
-                               >
-                                {subject}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {assignment.subjects.length === 0 && (
-                          <p className="text-xs text-amber-600 mt-2">
-                            No subjects assigned for this class
-                          </p>
-                        )}
-                      </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Title *
+                  </label>
+                  <select
+                    name="title"
+                    value={form.title}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  >
+                    <option value="">Select Title</option>
+                    {TITLES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
                     ))}
-                  </div>
-                )}
+                  </select>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    First Name *
+                  </label>
+                  <input
+                    name="firstName"
+                    placeholder="John"
+                    value={form.firstName}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Middle Name
+                  </label>
+                  <input
+                    name="middleName"
+                    placeholder="Michael"
+                    value={form.middleName}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Last Name *
+                  </label>
+                  <input
+                    name="lastName"
+                    placeholder="Doe"
+                    value={form.lastName}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Phone *
+                  </label>
+                  <input
+                    name="phone"
+                    placeholder="+1 234 567 8900"
+                    value={form.phone}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Email *
+                  </label>
+                  <input
+                    name="email"
+                    placeholder="john.doe@example.com"
+                    type="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Address *
+                </label>
+                <input
+                  name="address"
+                  placeholder="123 Main Street, City, State 12345"
+                  value={form.address}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Subject *
+                  </label>
+                  <select
+                    name="subject"
+                    value={form.subject}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  >
+                    <option value="">Select Subject</option>
+                    {subjects.map((s) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Class *
+                  </label>
+                  <select
+                    name="className"
+                    value={form.className}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  >
+                    <option value="">Select Class</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-2.5 bg-slate-400 text-white rounded-lg hover:bg-slate-500 transition font-medium"
+                  className="flex-1 px-5 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors"
                 >
                   Cancel
                 </button>
-
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-md active:scale-95"
+                  disabled={loading}
+                  className="flex-1 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editIndex !== null ? "Update Staff" : "Save Staff"}
+                  {loading ? "Saving..." : editId !== null ? "Update Staff" : "Save Staff"}
                 </button>
               </div>
             </form>

@@ -35,6 +35,11 @@ const navItems = [
     href: "/admin/staff",
     icon: UserCheck,
   },
+  {
+    title: "Subjects",
+    href: "/admin/subjects",
+    icon: School,
+  },
 ];
 
 export default function Sidebar() {
