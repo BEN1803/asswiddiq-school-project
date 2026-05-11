@@ -6,6 +6,10 @@ import { Plus, Search, Edit, Trash2, X, BookOpen } from "lucide-react";
 type Subject = {
   id: number;
   name: string;
+  classes?: {
+    id: number;
+    name: string;
+  }[];
   className?: string;
   classEntity?: {
     id: number;
@@ -51,6 +55,15 @@ export default function SubjectsPage() {
     );
   }, [subjects, search]);
 
+  const getSubjectClassNames = (subject: Subject) => {
+    if (subject.classes && subject.classes.length > 0) {
+      return subject.classes.map((cls) => cls.name);
+    }
+
+    const fallbackName = subject.className || subject.classEntity?.name;
+    return fallbackName ? [fallbackName] : [];
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -62,11 +75,11 @@ export default function SubjectsPage() {
     const url = editId ? `${API}/subjects/${editId}` : `${API}/subjects`;
 
     try {
-      const payload: { name: string; classEntity?: { id: number } } = {
+      const payload: { name: string; classes?: { id: number }[] } = {
         name: name.trim(),
       };
       if (selectedClassId) {
-        payload.classEntity = { id: Number(selectedClassId) };
+        payload.classes = [{ id: Number(selectedClassId) }];
       }
 
       const res = await fetch(url, {
@@ -113,8 +126,9 @@ export default function SubjectsPage() {
   const openEditModal = (s: Subject) => {
     setName(s.name);
     setEditId(s.id);
-    // Resolve class ID from classEntity (nested) or className (flat string)
-    let classId: string | undefined = s.classEntity?.id?.toString();
+    // Resolve class ID from classes (many), classEntity (legacy), or className (flat string)
+    let classId: string | undefined = s.classes?.[0]?.id?.toString();
+    classId = classId || s.classEntity?.id?.toString();
     if (!classId && s.className) {
       classId = classes.find((c) => c.name === s.className)?.id?.toString();
     }
@@ -213,11 +227,18 @@ export default function SubjectsPage() {
                       </td>
                       <td className="px-6 py-4">
                         {(() => {
-                          const className = s.className || s.classEntity?.name;
-                          return className ? (
-                            <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
-                              {className}
-                            </span>
+                          const classNames = getSubjectClassNames(s);
+                          return classNames.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {classNames.map((className) => (
+                                <span
+                                  key={className}
+                                  className="px-3 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium"
+                                >
+                                  {className}
+                                </span>
+                              ))}
+                            </div>
                           ) : (
                             <span className="px-3 py-1 bg-slate-100 text-slate-400 rounded text-xs">
                               Unassigned
@@ -258,7 +279,7 @@ export default function SubjectsPage() {
                       <div className="min-w-0">
                         <h3 className="font-semibold text-slate-900 truncate">{s.name}</h3>
                         <p className="text-xs text-slate-500 mt-1 truncate">
-                          {s.className || s.classEntity?.name || "Unassigned"}
+                          {getSubjectClassNames(s).join(", ") || "Unassigned"}
                         </p>
                       </div>
                     </div>

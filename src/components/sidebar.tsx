@@ -11,7 +11,9 @@ import {
   Menu,
   X,
   ChevronDown,
-  School
+  School,
+  BookOpen,
+  UserCog,
 } from "lucide-react";
 
 const navItems = [
@@ -31,6 +33,11 @@ const navItems = [
     icon: Users,
   },
   {
+    title: "Parents",
+    href: "/admin/parents",
+    icon: UserCog,
+  },
+  {
     title: "Staff",
     href: "/admin/staff",
     icon: UserCheck,
@@ -39,6 +46,11 @@ const navItems = [
     title: "Subjects",
     href: "/admin/subjects",
     icon: School,
+  },
+  {
+    title: "Classes",
+    href: "/admin/classes",
+    icon: BookOpen,
   },
 ];
 
